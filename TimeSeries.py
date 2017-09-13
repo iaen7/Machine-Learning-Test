@@ -35,7 +35,7 @@ def test_stationarity(timeseries):
         dfoutput['Critical Value (%s)'%key] = value
     print (dfoutput)
 
-def plot(df1):
+def pre_det(df1):
     lag_acf = acf(df1, nlags=30)
     lag_pacf = pacf(df1, nlags=30, method='ols')
     #Plot ACF: 
@@ -60,8 +60,26 @@ df1 = pd.read_csv('merge_power.csv', parse_dates = ['record_date'],
 df1 = df1.iloc[:,1]
 #df1.to_csv('merge_power2.csv')
 df1 = df1.astype('float64')
-model = ARIMA(df1, order=(0, 1, 99))  
+df_diff = df1 - df1.shift()
+df_diff.dropna(inplace = True)
+model = ARIMA(df_diff, order=(0, 1, 2))  
 results_ARIMA = model.fit(disp=-1)  
-plt.plot(df1)
-plt.plot(results_ARIMA.fittedvalues, color='red')
-plt.title('RSS: %.4f'% sum((results_ARIMA.fittedvalues-df1)**2))
+#plt.plot(df_diff)
+#plt.plot(results_ARIMA.fittedvalues, color='red')
+#plt.title('RSS: %.4f'% sum((results_ARIMA.fittedvalues-df_diff)**2))
+period = pd.date_range(start = '20150102',end = '20160930')
+predic_ARIMA_diff = pd.Series(results_ARIMA.predict(start = '20150103',
+                            end = '20160930'),index = period)
+predic_ARIMA_diff.iloc[0] = df_diff[0]
+predic_ARIMA_cumsum = predic_ARIMA_diff.cumsum()
+pre_period = pd.date_range(start = '20160901',end = '20160930')
+pre_consum = pd.Series(df1.ix[0], pre_period)
+for i in pre_consum.index:
+    pre_consum[i] += predic_ARIMA_cumsum[i]
+pre_consum = pre_consum.astype('int64')
+pre_consum.index.rename('predict_date',inplace = True)
+pre_consum.rename('predict_power_consumption', inplace = True)
+#pre_df.to_csv('Tianchi_power_predict_table.csv')
+#predic_ARIMA_cumsum = predic_ARIMA_diff.cumsum()
+#predic_ARIMA_diff[0] = df_diff[0]
+#predic_ARIMA_cumsum = predic_ARIMA_diff.cumsum()
